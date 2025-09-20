@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { marked } from 'marked';
 
-interface PdfEditorModalProps {
+interface ContentEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialContent: string;
   topic: string;
-  onGenerate: (editedContent: string) => void;
+  onConfirm: (editedContent: string) => void;
+  title: string;
+  confirmButtonText: string;
 }
 
-const PdfEditorModal: React.FC<PdfEditorModalProps> = ({ isOpen, onClose, initialContent, topic, onGenerate }) => {
+const ContentEditorModal: React.FC<ContentEditorModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  initialContent, 
+  topic, 
+  onConfirm,
+  title,
+  confirmButtonText 
+}) => {
   const [markdown, setMarkdown] = useState(initialContent);
 
   useEffect(() => {
@@ -40,7 +50,7 @@ const PdfEditorModal: React.FC<PdfEditorModalProps> = ({ isOpen, onClose, initia
     >
       <header className="flex-shrink-0 flex items-center justify-between pb-4 border-b border-gray-700 mb-4">
         <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">PDF Editor & Previewer</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
             <p className="text-sm text-gray-400 mt-1 truncate max-w-md sm:max-w-lg">Topic: {topic}</p>
         </div>
         <button 
@@ -84,14 +94,14 @@ const PdfEditorModal: React.FC<PdfEditorModalProps> = ({ isOpen, onClose, initia
             Cancel
           </button>
           <button 
-            onClick={() => onGenerate(markdown)}
+            onClick={() => onConfirm(markdown)}
             className="px-6 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
           >
-            Generate PDF
+            {confirmButtonText}
           </button>
       </footer>
     </div>
   );
 };
 
-export default PdfEditorModal;
+export default ContentEditorModal;

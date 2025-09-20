@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import Spinner from './Spinner';
 import Watermark from './Watermark';
 import DownloadableStyledContent from './DownloadableStyledContent';
-import PdfEditorModal from './PdfEditorModal';
+import ContentEditorModal from './PdfEditorModal';
 import PdfContent from './PdfContent';
 import { GenerationResult, GenerationType, TextOverlayOptions } from '../types';
 
@@ -108,9 +108,13 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
     const downloadMenuRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // PDF specific state
-    const [isPdfEditorOpen, setIsPdfEditorOpen] = useState(false);
+    // Editor Modal State
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editorFormat, setEditorFormat] = useState<'pdf' | 'md' | 'png' | 'jpeg' | null>(null);
+    
+    // Content override state for downloads
     const [pdfRenderContent, setPdfRenderContent] = useState<string | null>(null);
+    const [imageRenderContent, setImageRenderContent] = useState<string | null>(null);
 
     const isIdeaGenerationType = [
         GenerationType.ContentIdeas,
@@ -214,10 +218,10 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
         setIsDownloading(null);
     };
 
-    const handleDownloadText = () => {
-        if (!result?.text) return;
+    const handleDownloadText = (content: string) => {
+        if (!content) return;
         setIsDownloading('md');
-        const blob = new Blob([result.text], { type: 'text/markdown;charset=utf-8' });
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -229,11 +233,25 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
         setIsDownloading(null);
     };
 
-    const handleDownloadImage = async (format: 'png' | 'jpeg') => {
-        const elementToCapture = downloadableImageRef.current || downloadableContentRef.current;
-        if (!elementToCapture) return;
-
+    const handleDownloadImage = async (format: 'png' | 'jpeg', content?: string) => {
         setIsDownloading(format);
+        let elementToCapture: HTMLDivElement | null;
+
+        if (content) {
+            setImageRenderContent(content);
+            await new Promise(resolve => setTimeout(resolve, 100)); // Wait for re-render
+            elementToCapture = downloadableContentRef.current;
+        } else {
+            elementToCapture = downloadableImageRef.current || downloadableContentRef.current;
+        }
+
+        if (!elementToCapture) {
+            console.error('Downloadable element not found');
+            setIsDownloading(null);
+            if (content) setImageRenderContent(null);
+            return;
+        };
+
         try {
             const options = {
                 quality: 0.98,
@@ -256,11 +274,13 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
             console.error(`Failed to generate ${format}`, err);
         } finally {
             setIsDownloading(null);
+            if (content) {
+                setImageRenderContent(null);
+            }
         }
     };
     
     const handleGeneratePdf = async (editedMarkdown: string) => {
-        setIsPdfEditorOpen(false);
         setIsDownloading('pdf');
         setPdfRenderContent(editedMarkdown);
 
@@ -365,7 +385,40 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
         }
     };
     
+    const handleConfirmEdit = (editedContent: string) => {
+        setIsEditorOpen(false);
+        if (!editorFormat) return;
+
+        switch (editorFormat) {
+            case 'pdf':
+                handleGeneratePdf(editedContent);
+                break;
+            case 'md':
+                handleDownloadText(editedContent);
+                break;
+            case 'png':
+                handleDownloadImage('png', editedContent);
+                break;
+            case 'jpeg':
+                handleDownloadImage('jpeg', editedContent);
+                break;
+        }
+        setEditorFormat(null);
+    };
+
+    const getEditorConfig = () => {
+        if (!editorFormat) return null;
+        switch (editorFormat) {
+            case 'pdf': return { title: 'Edit Content for PDF', confirmButtonText: 'Generate PDF' };
+            case 'md': return { title: 'Edit Markdown Content', confirmButtonText: 'Download .md' };
+            case 'png': return { title: 'Edit Content for Image', confirmButtonText: 'Download .png' };
+            case 'jpeg': return { title: 'Edit Content for Image', confirmButtonText: 'Download .jpeg' };
+        }
+    };
+
     const parsedHtml = result?.text ? marked.parse(result.text) as string : '';
+    const finalHtmlForImage = imageRenderContent ? marked.parse(imageRenderContent) as string : parsedHtml;
+    const currentEditorConfig = getEditorConfig();
     
     const renderContent = () => {
         if (isLoading) {
@@ -543,7 +596,7 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
                              Download
                         </button>
                         {downloadMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-20">
+                            <div className="absolute top-full right-0 mt-2 w-52 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-20">
                                 <ul className="py-1">
                                     {generationType === GenerationType.Video && result?.imageUrl && (
                                          <li>
@@ -555,23 +608,23 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
                                     {generationType !== GenerationType.Video && (
                                          <>
                                             <li>
-                                                <button onClick={() => setIsPdfEditorOpen(true)} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                <button onClick={() => { setEditorFormat('pdf'); setIsEditorOpen(true); setDownloadMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
                                                     {isDownloading === 'pdf' ? 'Generating...' : 'Export as PDF...'}
                                                 </button>
                                             </li>
                                             <li>
-                                                <button onClick={handleDownloadText} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
-                                                    {isDownloading === 'md' ? 'Downloading...' : 'Download Markdown (.md)'}
+                                                <button onClick={() => { setEditorFormat('md'); setIsEditorOpen(true); setDownloadMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'md' ? 'Downloading...' : 'Download Markdown...'}
                                                 </button>
                                             </li>
                                             <li>
-                                                <button onClick={() => handleDownloadImage('png')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
-                                                    {isDownloading === 'png' ? 'Generating...' : 'Download as Image (.png)'}
+                                                <button onClick={() => { if (generationType === GenerationType.ImagePost) { handleDownloadImage('png'); } else { setEditorFormat('png'); setIsEditorOpen(true); } setDownloadMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'png' ? 'Generating...' : 'Download as Image (.png)...'}
                                                 </button>
                                             </li>
                                             <li>
-                                                <button onClick={() => handleDownloadImage('jpeg')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
-                                                    {isDownloading === 'jpeg' ? 'Generating...' : 'Download as Image (.jpeg)'}
+                                                <button onClick={() => { if (generationType === GenerationType.ImagePost) { handleDownloadImage('jpeg'); } else { setEditorFormat('jpeg'); setIsEditorOpen(true); } setDownloadMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'jpeg' ? 'Generating...' : 'Download as Image (.jpeg)...'}
                                                 </button>
                                             </li>
                                          </>
@@ -586,16 +639,18 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
 
             {/* Hidden, styled content for image downloads */}
             <div className="absolute -left-[9999px] top-0">
-                <DownloadableStyledContent ref={downloadableContentRef} htmlContent={parsedHtml} topic={topic} />
+                <DownloadableStyledContent ref={downloadableContentRef} htmlContent={finalHtmlForImage} topic={topic} />
             </div>
 
-            {/* PDF Editor Modal */}
-            <PdfEditorModal
-                isOpen={isPdfEditorOpen}
-                onClose={() => setIsPdfEditorOpen(false)}
+            {/* Content Editor Modal */}
+            <ContentEditorModal
+                isOpen={isEditorOpen}
+                onClose={() => setIsEditorOpen(false)}
                 initialContent={result?.text || ''}
                 topic={topic}
-                onGenerate={handleGeneratePdf}
+                onConfirm={handleConfirmEdit}
+                title={currentEditorConfig?.title || 'Edit Content'}
+                confirmButtonText={currentEditorConfig?.confirmButtonText || 'Confirm'}
             />
             
             {/* Hidden container for PDF rendering */}

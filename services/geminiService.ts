@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
 // FIX: Imported personaDisplayNames from types.ts to resolve reference error.
 import { GenerationOptions, GenerationType, PostLength, GenerationResult, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, Tone, personaDisplayNames } from '../types';
 
@@ -272,83 +272,330 @@ const getPersonaPrompt = (persona: Persona): string => {
         case Persona.DirectorOfAI:
             return "Act as a Director of AI. Your tone is leadership-focused, strategic, and managerial. You lead a team of AI professionals (data scientists, ML engineers). You are responsible for setting the technical direction, managing projects, hiring talent, and aligning the team's work with business objectives. Your audience is your team, senior management, and cross-functional partners.";
         case Persona.ETLDeveloper:
-            return "Act as an ETL Developer. Your tone is technical and process-driven. You are a specialist in Extract, Transform, Load processes. You design and build the pipelines that move data from source systems into data warehouses. You are an expert in data integration tools and SQL. You focus on data quality and reliability. Your audience is data engineers and BI developers.";
+             return "Act as an ETL Developer. Your tone is technical, methodical, and focused on data movement and transformation. You are an expert in building and maintaining robust ETL (Extract, Transform, Load) pipelines. You discuss data integration, data warehousing, scripting, and performance optimization of data flows. Your audience is data engineers and BI developers.";
         case Persona.GenerativeAISpecialist:
-            return "Act as a Generative AI Specialist. Your tone is innovative, creative, and on the cutting-edge. You are an expert in large language models (LLMs) and diffusion models. You build applications using generative AI, focusing on prompt engineering, fine-tuning, and RAG. You discuss the latest models and techniques for generating text, images, and code. Your audience is developers and product managers.";
+            return "Act as a Generative AI Specialist. Your tone is creative, experimental, and at the cutting edge. You specialize in large language models (LLMs) and diffusion models. You discuss prompt engineering, fine-tuning, and the creative and business applications of generative technologies. Your audience is product innovators and AI enthusiasts.";
         case Persona.HeadOfAI:
-            return "Act as a Head of AI. Your tone is executive, visionary, and business-centric. You are a senior leader, often at the VP level, responsible for the entire AI function within a company. You define the company's AI vision, secure budget, and champion AI initiatives at the highest level. You focus on long-term strategy and business impact. Your audience is the C-suite and board of directors.";
+            return "Act as a Head of AI. Your tone is executive, visionary, and strategic. You lead the entire AI department or function within a large organization. You are responsible for the overall AI strategy, budget, and demonstrating business impact. You interact with the highest levels of company leadership. Your audience is the C-suite and board members.";
         case Persona.HealthInformaticsSpecialist:
-            return "Act as a Health Informatics Specialist. Your tone is analytical and focused on the intersection of healthcare and information technology. You design and manage health information systems, ensuring data is collected, stored, and used effectively and securely. You focus on standards like HL7 and FHIR, and the usability of clinical systems. Your audience is healthcare administrators and clinicians.";
+            return "Act as a Health Informatics Specialist. Your tone is analytical and focused on clinical data systems. You manage and analyze health information, ensuring its quality, security, and interoperability. You are an expert in healthcare data standards (like HL7, FHIR) and electronic health record (EHR) systems. Your audience is healthcare administrators and clinical staff.";
         case Persona.InformationDesigner:
-            return "Act as an Information Designer. Your tone is user-centric, structured, and focused on clarity. You are an expert in organizing and presenting complex information to make it understandable and usable. This goes beyond data visualization to include workflow diagrams, instructional materials, and system architectures. Your goal is to fight complexity. Your audience is end-users and technical teams.";
+            return "Act as an Information Designer. Your tone is clear, structured, and user-focused. You are an expert in organizing and presenting complex information to make it understandable and useful. This goes beyond just data visualization to include workflow diagrams, instructional design, and information architecture. Your audience is anyone who needs to understand a complex system or process.";
         case Persona.KnowledgeEngineer:
-            return "Act as a Knowledge Engineer. Your tone is structured, logical, and focused on semantics. You build knowledge graphs and ontologies that represent domain knowledge in a machine-readable format. You are an expert in logic and creating structured data models that can be used for reasoning. You discuss RDF, OWL, and graph databases. Your audience is AI researchers and data architects.";
+            return "Act as a Knowledge Engineer. Your tone is structured and logical. You build and maintain knowledge graphs and ontologies that represent complex domain knowledge for AI systems to reason with. You discuss semantic web technologies (RDF, OWL) and knowledge representation. Your audience is AI researchers and data architects.";
         case Persona.MachineLearningEngineer:
-            return "Act as a Machine Learning Engineer. Your tone is practical, technical, and focused on production systems. You take the models developed by data scientists and make them work in the real world. You are an expert in software engineering, model deployment, and MLOps. You focus on building scalable, reliable, and maintainable ML systems. Your audience is data scientists and software developers.";
+            return "Act as a Machine Learning Engineer. Your tone is practical, technical, and focused on deployment. You are an expert in taking ML models developed by data scientists and putting them into production. You build scalable, reliable systems for model training, deployment, and monitoring. You are a strong software engineer. Your audience is data scientists and DevOps engineers.";
         case Persona.MLOpsEngineer:
-            return "Act as an MLOps Engineer. Your tone is highly technical and focused on automation and lifecycle management. You are a specialist who builds and maintains the platforms and processes for managing the entire machine learning lifecycle. You focus on CI/CD for models, automated training, monitoring, and model versioning. Your audience is machine learning engineers and data scientists.";
+            return "Act as an MLOps Engineer. Your tone is focused on process, automation, and reliability. You are a specialist within ML engineering who focuses on the entire lifecycle of machine learning models. You build the CI/CD/CT (Continuous Integration/Delivery/Training) pipelines for ML, ensuring that models can be reliably and efficiently retrained and deployed. Your audience is the entire AI team.";
         case Persona.NLPSpecialist:
-            return "Act as an NLP Specialist. Your tone is technical and focused on text data. You design and build systems that can understand and process human language. You discuss techniques like sentiment analysis, named entity recognition, and text summarization. You are an expert in leveraging language models for specific tasks. Your audience is ML engineers and product managers.";
+            return "Act as a Natural Language Processing (NLP) Specialist. Your tone is technical and focused on text and language data. You design and build systems that understand and generate human language. You discuss topics like sentiment analysis, named entity recognition, and transformer models. Your audience is other ML engineers and computational linguists.";
         case Persona.OperationsResearchAnalyst:
-            return "Act as an Operations Research Analyst. Your tone is mathematical, optimization-focused, and analytical. You use advanced mathematical and analytical methods to help organizations make better decisions. You build optimization models for problems like scheduling, logistics, and resource allocation. You discuss linear programming and simulation. Your audience is business operations and management.";
+            return "Act as an Operations Research Analyst. Your tone is mathematical, optimization-focused, and analytical. You use advanced mathematical and analytical methods to help organizations make better decisions. You solve complex problems related to logistics, supply chain, and scheduling. You use techniques like linear programming and simulation. Your audience is business operations and logistics managers.";
         case Persona.PrincipalDataScientist:
-            return "Act as a Principal Data Scientist. Your tone is that of a technical leader and mentor. You are a senior individual contributor who tackles the most complex and ambiguous data science problems. You provide technical leadership for the data science team, set best practices, and mentor junior scientists. You are still hands-on, but also a strategic thinker. Your audience is the data science team and senior leadership.";
+            return "Act as a Principal Data Scientist. Your tone is that of a technical leader and mentor. You are a senior individual contributor who tackles the most complex and ambiguous data science problems in the organization. You provide technical guidance to other data scientists and help set the scientific direction for the team. Your audience is other data scientists and technical leadership.";
         case Persona.PromptEngineer:
-            return "Act as a Prompt Engineer. Your tone is creative, precise, and empirical. You are a specialist in the art and science of crafting effective prompts for large language models. You have a deep, intuitive understanding of how to instruct, guide, and constrain AI models to get the desired output. You use techniques like chain-of-thought, few-shot prompting, and structured inputs. Your audience is developers building on LLMs.";
+            return "Act as a Prompt Engineer. Your tone is creative, precise, and empirical. You are an expert at designing and refining the inputs (prompts) given to large language models to get the best possible output. You are a master of 'instruction-tuning' and have a deep, intuitive understanding of how LLMs 'think'. Your audience is anyone working with generative AI.";
         case Persona.QuantitativeAnalyst:
-            return "Act as a Quantitative Analyst (Quant). Your tone is highly mathematical, statistical, and focused on financial markets. You design and implement complex mathematical models for pricing financial instruments, risk management, and algorithmic trading. You are an expert in stochastic calculus, time series analysis, and statistics. Your audience is traders and financial engineers.";
+            return "Act as a Quantitative Analyst (Quant). Your tone is highly mathematical, statistical, and finance-oriented. You work in the financial industry, developing complex mathematical models for pricing, risk management, and algorithmic trading. You are an expert in stochastic calculus, time series analysis, and financial markets. Your audience is traders, portfolio managers, and risk officers.";
         case Persona.ReinforcementLearningEngineer:
-            return "Act as a Reinforcement Learning (RL) Engineer. Your tone is technical and focused on decision-making systems. You build agents that learn to achieve goals in a complex, uncertain environment through trial and error. You discuss topics like Q-learning, policy gradients, and multi-agent systems. You work in areas like robotics, game playing, and optimization. Your audience is other RL researchers and engineers.";
+            return "Act as a Reinforcement Learning (RL) Engineer. Your tone is technical and focused on decision-making systems. You build agents that learn to achieve goals in a complex, uncertain environment by trial and error. You discuss topics like Markov decision processes, Q-learning, and policy gradients. Your audience is AI researchers and robotics engineers.";
         case Persona.RoboticsEngineer:
-            return "Act as a Robotics Engineer with an AI Focus. Your tone is technical, systems-oriented, and applied. You design and build robots that can perceive, reason, and act in the physical world. You integrate AI for tasks like navigation (SLAM), object manipulation, and human-robot interaction. You are an expert in both hardware and software. Your audience is other robotics and AI engineers.";
+            return "Act as a Robotics Engineer with an AI Focus. Your tone is interdisciplinary, combining mechanical, electrical, and software engineering. You design and build intelligent robots. You focus on the intersection of hardware and AI, working on problems like perception, navigation (SLAM), and manipulation. Your audience is other robotics and AI engineers.";
         case Persona.SearchRelevanceEngineer:
-            return "Act as a Search & Relevance Engineer. Your tone is technical, analytical, and focused on information retrieval. You build and tune search engines to provide the most relevant results for user queries. You work on ranking algorithms, query understanding, and search quality metrics. Your audience is product managers and software engineers.";
+            return "Act as a Search and Relevance Engineer. Your tone is technical and focused on information retrieval. You build and improve search engines. You work on algorithms for ranking, query understanding, and personalization to ensure users find the most relevant results. Your audience is software engineers and product managers.";
         case Persona.SoftwareDeveloper:
-            return "Act as a Software Developer with an AI/ML Focus. Your tone is practical, product-focused, and collaborative. You are a skilled software engineer who integrates AI models into user-facing applications. You build APIs, user interfaces, and the surrounding application logic that makes AI useful. You focus on clean code, testing, and good software architecture. Your audience is other developers and product managers.";
+            return "Act as a Software Developer with an AI/ML Focus. Your tone is that of a skilled programmer who integrates AI models into larger applications. You build the APIs, user interfaces, and backend services that make machine learning models useful. You are an expert in software architecture and system design. Your audience is other software developers.";
         case Persona.SpeechRecognitionEngineer:
-            return "Act as a Speech Recognition Engineer. Your tone is technical and focused on audio data. You build systems that convert spoken language into written text. You discuss acoustic modeling, language modeling, and architectures for automatic speech recognition (ASR). You work on applications like voice assistants and transcription services. Your audience is other speech and language engineers.";
+            return "Act as a Speech Recognition Engineer. Your tone is technical and focused on audio data. You build systems that convert spoken language into text. You discuss acoustic modeling, language modeling, and deep learning architectures for speech. Your audience is other ML engineers and linguists.";
         case Persona.Statistician:
-            return "Act as a Statistician. Your tone is rigorous, methodical, and grounded in mathematical principles. You are an expert in experimental design, hypothesis testing, and statistical modeling. You focus on drawing valid conclusions from data and understanding uncertainty. You are more focused on inference and causality than pure prediction. Your audience is researchers and data scientists.";
+            return "Act as a Statistician. Your tone is rigorous, precise, and grounded in mathematical theory. You are an expert in experimental design, statistical inference, and probability theory. You focus on the mathematical correctness of data analysis and modeling. Your audience is researchers and data scientists.";
         case Persona.UXDesignerDataProducts:
-            return "Act as a UX Designer for Data Products. Your tone is user-centric, empathetic, and collaborative. You specialize in designing intuitive and effective interfaces for complex data applications and dashboards. You focus on how users interact with data, how to present insights clearly, and how to build trust in AI-driven features. Your audience is product managers and engineers.";
+            return "Act as a UX Designer for Data Products. Your tone is user-centric, empathetic, and analytical. You specialize in designing the user experience for data-heavy applications like dashboards and analytics tools. You focus on how to make complex data understandable, usable, and actionable for users. Your audience is product managers and data visualization engineers.";
         case Persona.VPofDataScience:
-            return "Act as a VP of Data Science. Your tone is executive, strategic, and focused on team building. You are a senior leader responsible for the entire data science organization. You set the vision, build and scale the team, and ensure the team's work delivers significant business value. You are less hands-on with models and more focused on people, process, and impact. Your audience is the C-suite and your direct reports.";
+            return "Act as a VP of Data Science. Your tone is executive, strategic, and focused on business impact. You are a senior leader responsible for the entire data science function in an organization. You manage managers, set the long-term vision, and are accountable for how data science drives revenue or reduces costs. Your audience is the C-suite.";
         // Healthcare Roles
         case Persona.CardiacTechnologist:
-            return "Act as a Cardiac Technologist. Your tone is clinical, precise, and patient-focused. You are an expert in cardiovascular technology and diagnostics (e.g., EKG, echocardiograms). When discussing AI, you focus on its practical application in improving diagnostic accuracy, workflow efficiency, and early detection of cardiac conditions. Your audience is other healthcare professionals, including cardiologists and nurses.";
+            return "Act as a Cardiac Technologist. Your tone is clinical, precise, and patient-focused. You are a healthcare professional specializing in cardiovascular diagnostics. When discussing AI, you focus on its practical applications in interpreting ECGs, analyzing echocardiograms, and improving the accuracy and efficiency of cardiac testing. Your audience is fellow clinicians and medical device innovators.";
         case Persona.ChiefMedicalInformationOfficer:
-            return "Act as a Chief Medical Information Officer (CMIO). Your tone is a blend of clinical expertise and IT leadership. You are a physician executive who bridges the gap between the medical staff and the IT department. You champion the use of technology, including AI, to improve patient care, clinical documentation, and data analytics within a healthcare system. Your audience is clinicians and hospital executives.";
+            return "Act as a Chief Medical Information Officer (CMIO). Your tone is that of a clinical leader who is also a technology strategist. You are a physician who bridges the gap between the clinical and IT departments of a healthcare organization. You champion the use of technology to improve patient care. You discuss EHR optimization, clinical decision support systems, and telehealth infrastructure. Your audience is hospital executives and clinical staff.";
         case Persona.HealthcareAdministrator:
-            return "Act as a Healthcare Administrator. Your tone is operational, business-oriented, and focused on efficiency and quality of care. You manage the business side of a hospital or clinic. When discussing AI, you focus on its potential to optimize operations, reduce costs, improve patient throughput, and enhance administrative workflows. Your audience is hospital management and department heads.";
+            return "Act as a Healthcare Administrator. Your tone is operational, business-focused, and concerned with efficiency and quality of care. You manage the business side of a hospital or clinic. When discussing AI, you focus on its potential to optimize hospital operations, reduce costs, improve patient scheduling, and manage resources more effectively. Your audience is hospital management and operational staff.";
         case Persona.HealthcareInnovator:
-            return "Act as a Healthcare Innovator. Your tone is visionary, entrepreneurial, and forward-looking. You are focused on identifying and implementing breakthrough technologies and care models to transform the healthcare industry. You discuss digital health, personalized medicine, and the strategic adoption of AI to create a more proactive and patient-centric healthcare system. Your audience is investors, strategists, and healthcare leaders.";
+            return "Act as a Healthcare Innovator. Your tone is visionary, entrepreneurial, and forward-looking. You are focused on creating the future of healthcare through new technologies, business models, and care delivery systems. You discuss digital health startups, value-based care, and the transformative potential of technologies like AI and blockchain in medicine. Your audience is investors, entrepreneurs, and healthcare strategists.";
         case Persona.MedicalDoctor:
-            return "Act as a Medical Doctor. Your tone is clinical, evidence-based, and compassionate. You are a practicing physician. When discussing AI, you approach it from the perspective of a user and a patient advocate. You focus on how AI tools can augment your diagnostic capabilities, personalize treatment plans, and improve patient outcomes, while also being critical of their limitations and potential for error. Your audience is fellow physicians and patients.";
+            return "Act as a Medical Doctor. Your tone is clinical, evidence-based, and patient-centric. You are a practicing physician. When discussing AI, you approach it from the perspective of how it can augment your ability to diagnose and treat patients. You are interested in clinical decision support, diagnostic imaging analysis, and the real-world evidence supporting the use of AI tools in practice. You are also cautiously aware of its limitations and ethical implications. Your audience is other physicians and medical students.";
         case Persona.MedicalImagingAnalyst:
-            return "Act as a Medical Imaging Analyst. Your tone is technical, detail-oriented, and analytical. You are an expert in interpreting medical images like X-rays, CT scans, and MRIs. You are deeply interested in how AI, especially computer vision, can assist in detecting anomalies, quantifying disease progression, and improving the speed and accuracy of radiological diagnoses. Your audience is radiologists and computer vision engineers.";
+            return "Act as a Medical Imaging Analyst. Your tone is technical, analytical, and highly specialized. You are an expert in analyzing medical images like X-rays, CT scans, and MRIs. You are at the forefront of using AI, particularly computer vision, to detect anomalies, segment structures, and quantify disease from these images. Your audience is radiologists, computer vision engineers, and medical device companies.";
         case Persona.TelehealthCoordinator:
-            return "Act as a Telehealth Coordinator. Your tone is practical, patient-centric, and tech-savvy. You manage and facilitate virtual care services. When discussing AI, you focus on how it can enhance telehealth platforms through tools like chatbots for triage, remote patient monitoring analytics, and automating clinical documentation during virtual visits. Your audience is healthcare providers and patients.";
+            return "Act as a Telehealth Coordinator. Your tone is practical, patient-oriented, and focused on logistics. You manage and facilitate virtual care delivery. When discussing AI, you are interested in how it can improve the telehealth experience, such as through AI-powered chatbots for patient intake, virtual triage systems, or tools for remote patient monitoring. Your audience is patients, clinicians, and healthcare administrators.";
         default:
-            return "Act as a professional expert in AI and Data Science in Healthcare.";
+            return getPersonaPrompt(Persona.GanapathiKakarla); // Fallback
     }
 };
 
-export async function getTopicSuggestions(type: GenerationType, persona: Persona, existingSuggestions: string[], currentTopic: string): Promise<string[]> {
+const constructPrompt = async (options: GenerationOptions): Promise<{ prompt: string, useSearch: boolean }> => {
+    const { type, topic, pageCount, postLength, persona, difficultyLevel, company, dayNumber, tone, imageBackgroundColor, imageStyle, logoImage, textOverlay } = options;
+    const personaPrompt = getPersonaPrompt(persona);
+    const qualityInstruction = getQualityInstruction();
+    let prompt = "";
+    let useSearch = false; // Flag to enable Google Search grounding
+
+    switch (type) {
+        case GenerationType.Post:
+        case GenerationType.ExamplePost:
+            const lengthInstruction = {
+                [PostLength.Concise]: 'a concise and impactful post (around 150-200 words)',
+                [PostLength.Medium]: 'a standard-length post (around 250-350 words)',
+                [PostLength.Detailed]: 'a detailed and in-depth post (around 400-600 words)',
+            }[postLength];
+            prompt = `Generate a high-quality, professional LinkedIn post on the topic of "${topic}". The post should be ${lengthInstruction}. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            useSearch = true;
+            break;
+
+        case GenerationType.ImagePost:
+            const imagePromptTopic = `A visually compelling, professional image for a LinkedIn post about "${topic}". The style should be ${imageStyle}.`;
+            const logoInclusion = logoImage ? " The company's logo is provided and must be tastefully and subtly incorporated into a corner of the image, ensuring it complements the overall design without being obtrusive." : "";
+            const bgColor = imageBackgroundColor ? ` The primary background or color theme should be based on '${imageBackgroundColor}'.` : "";
+            const overlayText = textOverlay?.text ? ` The text "${textOverlay.text}" should be overlaid on the image.` : "";
+            
+            const fullImagePrompt = `${imagePromptTopic}${bgColor}${logoInclusion}${overlayText}`;
+            
+             prompt = `
+                You will perform two tasks and provide two separate outputs.
+                
+                TASK 1: Generate a LinkedIn post text.
+                - Topic: "${topic}"
+                - Length: ${postLength}
+                - Persona: ${personaDisplayNames[persona]}
+                - Tone: ${tone}
+                - Instruction: Write a high-quality, professional LinkedIn post. ${personaPrompt} ${qualityInstruction}
+
+                TASK 2: Create a prompt for an image generation model.
+                - Instruction: Based on the LinkedIn post you just wrote, create a single, concise, and effective prompt for a text-to-image model (like Imagen) to generate a background image for the post.
+                - The prompt should be descriptive and capture the essence of the post.
+                - It must incorporate the following user-defined parameters:
+                    - Style: ${imageStyle}
+                    - Background/Theme Color: ${imageBackgroundColor || 'not specified'}
+                    - Include Logo: ${logoImage ? 'Yes' : 'No'}
+                - The final output for this task should be ONLY the prompt itself, enclosed in triple quotes. Example: """A minimalist abstract representation of neural networks in healthcare, with a blue and white color palette."""
+
+                Provide the output for each task clearly separated.
+            `;
+            useSearch = true;
+            break;
+
+        case GenerationType.Video:
+             prompt = `Generate a single, descriptive, and highly effective prompt for a text-to-video generation model (like Veo). The final output must be ONLY the prompt itself. The video should be a cinematic, high-quality stock video clip related to the topic: "${topic}". Do not add any text overlays or complex narratives. Focus on creating a visually appealing and relevant video scene. For example, if the topic is 'AI in surgery', a good prompt would be "A cinematic, close-up shot of a robotic surgical arm making a precise incision under bright operating room lights."`;
+            break;
+
+        case GenerationType.Document:
+            prompt = `Generate a comprehensive, multi-page professional document of approximately ${pageCount} pages on the topic "${topic}". The content should be structured with clear headings, subheadings, paragraphs, and lists. The difficulty level is ${difficultyLevel}. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            useSearch = true;
+            break;
+            
+        case GenerationType.ContentIdeas:
+             prompt = `Generate a list of 5-7 engaging content ideas for LinkedIn based on the core topic: "${topic}". For each idea, provide a compelling headline and a brief (1-2 sentence) description of the angle or key points. Format the output clearly. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.Top10Ideas:
+             prompt = `Generate a "Top 10" list post for LinkedIn on the topic: "${topic}". The post should have a catchy title, a brief introduction, a numbered list from 10 down to 1 with a short, impactful description for each item, and a concluding sentence to encourage engagement. ${personaPrompt} ${qualityInstruction}`;
+             break;
+        
+        case GenerationType.ProfessionalIdeas:
+            prompt = `Generate a list of 5 highly professional and thought-provoking content ideas for LinkedIn, tailored for a senior audience, based on the topic: "${topic}". For each idea, provide a sophisticated title and a 2-3 sentence abstract outlining the concept, its significance, and the key discussion points. ${personaPrompt} ${qualityInstruction}`;
+            break;
+        
+        case GenerationType.MythBusting:
+            prompt = `Create a "Myth Busting" LinkedIn post about the topic "${topic}". Start with a common misconception. Then, present 3-4 points that debunk this myth with facts, insights, or alternative perspectives. Structure it with a clear "Myth:" and "Reality:" format. The tone should be ${tone} and authoritative. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.QuickWins:
+            prompt = `Generate a "Quick Wins" or "Actionable Tips" LinkedIn post related to "${topic}". Provide a list of 3-5 practical, easy-to-implement tips or strategies that professionals can apply immediately. The tone should be helpful and direct. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.ComparativeAnalysis:
+            prompt = `Create a comparative analysis post for LinkedIn on the topic "${topic}". The topic likely involves comparing two or more concepts (e.g., 'Python vs R'). Clearly compare and contrast the key aspects, and provide a concluding summary of when to use each. Use bullet points or a structured format for clarity. The tone should be ${tone} and balanced. ${personaPrompt} ${qualityInstruction}`;
+            break;
+            
+        case GenerationType.TutorialOutline:
+            prompt = `Generate a detailed tutorial outline for a blog post or video on the topic "${topic}". The outline should be structured with logical sections (e.g., Introduction, Prerequisites, Step 1, Step 2, Conclusion) and include bullet points for the key topics to be covered in each section. The difficulty level is ${difficultyLevel}. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.WeeklyContentPlan:
+            prompt = `Create a 7-day content plan for a LinkedIn series based on the overarching theme: "${topic}". For each day (Day 1 to Day 7), provide a specific sub-topic, a suggested content format (e.g., text post, poll, image post), and a key talking point. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.DayWiseContentPlan:
+             prompt = `You are executing a multi-day content plan. The main theme is "${topic}". Today is Day ${dayNumber}. Generate the LinkedIn post content for today's sub-topic. You must first determine an appropriate sub-topic for Day ${dayNumber} within the series theme, and then write the full post. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.InterviewQuestions:
+            prompt = `Generate a list of 10-15 insightful interview questions for a candidate applying for a "${topic}" role. Include a mix of technical, behavioral, and situational questions. Also, for each question, provide a brief (1-2 sentence) explanation of what a good answer should demonstrate. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.CvEnhancement:
+             prompt = `Analyze the following role: "${topic}". Provide specific, actionable advice on how a professional can enhance their CV to be a strong candidate for this role. Focus on key skills to highlight, impactful project descriptions (with examples), and powerful action verbs to use. If a company is specified, tailor the advice: Company: "${company}". The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.ResumeTailoring:
+             prompt = `Generate specific guidance on how to tailor a resume for the role of "${topic}" at the company "${company}". Provide a bulleted list of modifications, including: 1. A summary statement targeting the role. 2. Keywords to incorporate from a typical job description for this role. 3. Suggestions on how to rephrase experience to align with the company's values and the job's requirements. The tone should be ${tone}. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        case GenerationType.CompanyProspector:
+            prompt = `Based on the role/skillset of "${topic}", generate a list of 10 companies that would likely hire for this position. For each company, provide its name and a brief (1-sentence) justification for why it's a good prospect. ${personaPrompt} ${qualityInstruction}`;
+            break;
+
+        default:
+            prompt = `Generate a professional LinkedIn post about "${topic}". ${personaPrompt} ${qualityInstruction}`;
+            useSearch = true;
+            break;
+    }
+    return { prompt, useSearch };
+};
+
+export const generateContent = async (options: GenerationOptions): Promise<GenerationResult> => {
+    try {
+        const aiInstance = getAi();
+        const { prompt, useSearch } = await constructPrompt(options);
+
+        if (options.type === GenerationType.ImagePost) {
+            const response = await aiInstance.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            const responseText = response.text;
+            const textMatch = responseText.match(/TASK 1: Generate a LinkedIn post text\.(.*?)TASK 2: Create a prompt for an image generation model\./is);
+            const imagePromptMatch = responseText.match(/"""(.*)"""/is);
+
+            const postText = textMatch ? textMatch[1].trim() : "Error: Could not parse post text.";
+            let imagePrompt = imagePromptMatch ? imagePromptMatch[1].trim() : `Abstract visualization of ${options.topic}`;
+            
+            // Add logo info to image prompt if available
+            if (options.logoImage) {
+                 imagePrompt += " with a small, subtle company logo in the bottom right corner.";
+            }
+
+            const imageResponse = await aiInstance.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: imagePrompt,
+                config: {
+                    numberOfImages: 1,
+                    outputMimeType: 'image/jpeg',
+                    aspectRatio: options.imageAspectRatio || ImageAspectRatio.Square,
+                }
+            });
+
+            const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+            const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+            
+            return { text: postText, imageUrl };
+
+        } else if (options.type === GenerationType.Video) {
+            let operation = await aiInstance.models.generateVideos({
+                model: 'veo-2.0-generate-001',
+                prompt: prompt,
+                config: { numberOfVideos: 1 }
+            });
+
+            while (!operation.done) {
+                await new Promise(resolve => setTimeout(resolve, 10000));
+                operation = await aiInstance.operations.getVideosOperation({ operation: operation });
+            }
+
+            const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+            if (!downloadLink) {
+                throw new Error("Video generation succeeded but no download link was found.");
+            }
+
+            const videoResponse = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+            if (!videoResponse.ok) {
+                throw new Error(`Failed to fetch video: ${videoResponse.statusText}`);
+            }
+            const videoBlob = await videoResponse.blob();
+            const videoDataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(videoBlob);
+            });
+            
+            return { text: `Video generated for prompt: "${prompt}"`, imageUrl: videoDataUrl };
+
+        } else {
+            const config: { tools?: any[] } = {};
+            if (useSearch) {
+                config.tools = [{ googleSearch: {} }];
+            }
+
+            const response: GenerateContentResponse = await aiInstance.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: config,
+            });
+
+            const result: GenerationResult = { text: response.text };
+            const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+
+            if (useSearch && groundingMetadata?.groundingChunks) {
+                const sources = groundingMetadata.groundingChunks
+                    .map(chunk => chunk.web)
+                    .filter(web => web?.uri && web.title) as Array<{ uri: string; title: string }>;
+                
+                if (sources.length > 0) {
+                     result.sources = sources;
+                }
+            }
+            return result;
+        }
+
+    } catch (error) {
+        throw handleApiError(error, `generate ${options.type}`);
+    }
+};
+
+export const humanifyText = async (text: string, persona: Persona): Promise<string> => {
     try {
         const aiInstance = getAi();
         const personaPrompt = getPersonaPrompt(persona);
+        const prompt = `Please rewrite the following text to make it sound more natural, engaging, and less like it was written by an AI. Adopt the persona described below. Do not add new information, just improve the style and flow. \n\nPERSONA: ${personaPrompt}\n\nORIGINAL TEXT:\n---\n${text}\n---\n\nREWRITTEN TEXT:`;
+        
+        const response = await aiInstance.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text;
+    } catch (error) {
+        throw handleApiError(error, 'humanify text');
+    }
+};
+
+export const getTopicSuggestions = async (
+    type: GenerationType,
+    persona: Persona,
+    existingSuggestions: string[] = [],
+    currentTopic: string = ''
+): Promise<string[]> => {
+    try {
+        const aiInstance = getAi();
+        const personaName = personaDisplayNames[persona];
+        const existingList = existingSuggestions.length > 0 
+            ? `Here are some existing suggestions to avoid repeating: ${existingSuggestions.join(', ')}.`
+            : '';
+        const topicContext = currentTopic.trim() 
+            ? `The user is currently exploring the topic "${currentTopic}", so suggestions should be related or logical next steps.`
+            : '';
 
         const prompt = `
-            ${personaPrompt}
-            Your task is to generate a list of 5 creative and relevant topic suggestions for a ${type}.
-            The suggestions should be related to the user's current topic idea, which is: "${currentTopic || 'AI and Data Science in Healthcare'}".
-            The suggestions should be distinct, engaging, and suitable for the specified persona.
-            They must be different from the following already existing suggestions:
-            ${existingSuggestions.map(s => `- "${s}"`).join('\n')}
-
-            Provide your response as a JSON array of strings. Example: ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"]
+            Please generate a list of 5 unique and compelling topic suggestions for a "${type}" content type.
+            The target persona is a "${personaName}".
+            ${topicContext}
+            ${existingList}
+            The suggestions should be interesting and relevant to this persona.
+            Return ONLY a JSON array of strings. Example: ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"]
         `;
-
+        
         const response = await aiInstance.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
@@ -361,252 +608,65 @@ export async function getTopicSuggestions(type: GenerationType, persona: Persona
             }
         });
 
-        const jsonStr = response.text.trim();
-        return JSON.parse(jsonStr);
+        let jsonStr = response.text.trim();
+        // The API might sometimes wrap the JSON in markdown backticks
+        if (jsonStr.startsWith('```json')) {
+            jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
+        }
+        
+        const suggestions = JSON.parse(jsonStr) as string[];
+        return suggestions.filter(s => typeof s === 'string');
 
     } catch (error) {
-        throw handleApiError(error, "get topic suggestions");
+        throw handleApiError(error, 'get topic suggestions');
     }
-}
+};
 
-export async function getCompanySuggestions(roleSkill: string, existingSuggestions: CompanySuggestion[]): Promise<CompanySuggestion[]> {
-    try {
+export const getCompanySuggestions = async (
+    roleOrSkill: string,
+    existingSuggestions: CompanySuggestion[] = []
+): Promise<CompanySuggestion[]> => {
+     try {
         const aiInstance = getAi();
-        const existingNames = existingSuggestions.map(s => s.name).join(', ');
-
+        const existingList = existingSuggestions.length > 0
+            ? `Here are some existing company suggestions to avoid repeating: ${existingSuggestions.map(c => c.name).join(', ')}.`
+            : '';
+        
         const prompt = `
-            Based on the job role or skill "${roleSkill}", generate a list of 5 relevant companies that would likely hire for this position.
-            Do not include any of the following companies: ${existingNames}.
-            For each company, identify its primary industry (e.g., "Big Tech", "Healthcare", "Consulting", "Finance", "Startup").
-
-            Provide your response as a JSON array of objects, where each object has "name" and "industry" keys.
-            Example: [{"name": "New Relic", "industry": "Big Tech"}, {"name": "Tempus", "industry": "Healthcare"}]
+            Based on the role/skillset of "${roleOrSkill}", generate a list of 5 more companies that would likely hire for this position.
+            ${existingList}
+            For each company, provide its name and its industry (either "Big Tech", "Healthcare", or "Consulting").
+            Return ONLY a JSON array of objects, where each object has "name" and "industry" keys.
         `;
-
+        
         const response = await aiInstance.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
-                responseMimeType: "application/json",
-                responseSchema: {
+                 responseMimeType: "application/json",
+                 responseSchema: {
                     type: Type.ARRAY,
                     items: {
                         type: Type.OBJECT,
                         properties: {
                             name: { type: Type.STRING },
                             industry: { type: Type.STRING }
-                        }
+                        },
+                        required: ["name", "industry"]
                     }
                 }
             }
         });
-        
-        const jsonStr = response.text.trim();
-        return JSON.parse(jsonStr);
 
-    } catch (error) {
-        throw handleApiError(error, "get company suggestions");
-    }
-}
-
-export async function humanifyText(text: string, persona: Persona): Promise<string> {
-    try {
-        const aiInstance = getAi();
-        const personaPrompt = getPersonaPrompt(persona);
-        
-        const prompt = `
-            ${personaPrompt}
-            ${getQualityInstruction()}
-
-            Your task is to rewrite the following text. The original text might sound a bit robotic or generic.
-            Your rewritten version should be more engaging, natural, and aligned with your specified persona.
-            Improve the flow, word choice, and sentence structure, but preserve the core meaning and key information of the original text.
-            Do not add new information or change the fundamental message.
-
-            ORIGINAL TEXT:
-            ---
-            ${text}
-            ---
-
-            Now, provide the rewritten, humanified version.
-        `;
-        
-        const response = await aiInstance.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-
-        return response.text;
-
-    } catch (error) {
-        throw handleApiError(error, "humanify text");
-    }
-}
-
-
-export async function generateContent(options: GenerationOptions): Promise<GenerationResult> {
-    try {
-        const aiInstance = getAi();
-        const personaPrompt = getPersonaPrompt(options.persona);
-        const qualityPrompt = getQualityInstruction();
-        let contextForRAG = '';
-        let prompt = '';
-
-        // RAG logic for Posts and Documents
-        if (options.type === GenerationType.Post || options.type === GenerationType.Document || options.type === GenerationType.ImagePost) {
-             if (options.topic.trim().length > 10) { // Only search for meaningful topics
-                const queryEmbedding = await generateEmbeddings(options.topic);
-                const searchResults = vectorStore.similarity_search(queryEmbedding, 3);
-                if (searchResults.length > 0) {
-                    contextForRAG = `To ensure consistency with previous content, you can optionally draw upon the following relevant context:\nCONTEXT:\n---\n${searchResults.join('\n\n')}\n---\n`;
-                }
-            }
-        }
-        
-        // Base prompt structure
-        const basePrompt = `${personaPrompt}\n${qualityPrompt}\n${contextForRAG}`;
-
-        switch (options.type) {
-            case GenerationType.Post:
-            case GenerationType.ImagePost:
-                prompt = `${basePrompt}\nGenerate a LinkedIn post on the topic: "${options.topic}". The post should be ${options.postLength} in length, written in a ${options.tone} tone.`;
-                break;
-            case GenerationType.Document:
-                prompt = `${basePrompt}\nGenerate a very detailed, multi-page document of approximately ${options.pageCount} pages on the topic: "${options.topic}". The content should be suitable for a ${options.difficultyLevel} audience and written in a ${options.tone} tone. Structure it with clear headings, subheadings, and detailed explanations. Ensure the content is extensive and fills multiple pages. For demonstration purposes, please include a comprehensive section, like a detailed case study, a long list of resources, or an appendix, to guarantee the content is long enough to be paginated. The final output must be exceptionally long.`;
-                break;
-            case GenerationType.Video:
-                 // Video generation is a special case handled below
-                break;
-            case GenerationType.ContentIdeas:
-                prompt = `${basePrompt}\nGenerate a list of 10 diverse and engaging content ideas based on the central theme: "${options.topic}". For each idea, provide a catchy title and a brief one-sentence description.`;
-                break;
-            case GenerationType.Top10Ideas:
-                 prompt = `${basePrompt}\nGenerate a "Top 10" list style post about "${options.topic}". It should be engaging and easy to read for a general professional audience.`;
-                 break;
-            case GenerationType.ProfessionalIdeas:
-                 prompt = `${basePrompt}\nGenerate a list of 5 highly professional and thought-provoking content ideas about "${options.topic}". These should be suitable for an expert audience, encouraging deep discussion.`;
-                 break;
-            case GenerationType.MythBusting:
-                 prompt = `${basePrompt}\nWrite a myth-busting post about "${options.topic}". Identify 3-5 common misconceptions and provide clear, evidence-based refutations for each. The tone should be ${options.tone} and authoritative.`;
-                 break;
-            case GenerationType.QuickWins:
-                 prompt = `${basePrompt}\nGenerate a list of "Quick Wins" or actionable tips related to "${options.topic}". These should be practical, easy to implement, and provide immediate value to the reader.`;
-                 break;
-            case GenerationType.ComparativeAnalysis:
-                 prompt = `${basePrompt}\nWrite a comparative analysis on the topic "${options.topic}". Compare and contrast the key aspects, presenting a balanced view of the pros and cons for each. Conclude with a summary of which might be better for specific scenarios. The tone should be ${options.tone}.`;
-                 break;
-            case GenerationType.TutorialOutline:
-                 prompt = `${basePrompt}\nCreate a detailed tutorial outline for "${options.topic}". The audience level is ${options.difficultyLevel}. The outline should be structured with clear sections, steps, and key learning objectives. The tone should be ${options.tone}.`;
-                 break;
-            case GenerationType.ExamplePost:
-                 prompt = `${basePrompt}\nWrite a complete, high-quality example of a LinkedIn post on the topic "${options.topic}". This post should be ready to publish and serve as a gold standard. The tone should be ${options.tone}.`;
-                 break;
-            case GenerationType.DayWiseContentPlan:
-                 prompt = `${basePrompt}\nYou are creating a 10-day content plan on the overarching topic of "${options.topic}". Your task is to generate the specific content for Day ${options.dayNumber}. Provide a detailed post for this day that fits into a coherent 10-day sequence. The tone should be ${options.tone}.`;
-                 break;
-            case GenerationType.WeeklyContentPlan:
-                 prompt = `${basePrompt}\nCreate a comprehensive 7-day content plan for LinkedIn based on the central theme: "${options.topic}". For each day, provide a specific sub-topic and a brief description of the post's content and format (e.g., text-only, poll, image, short video idea).`;
-                 break;
-            case GenerationType.InterviewQuestions:
-                 prompt = `${basePrompt}\nGenerate a list of 10 insightful interview questions for a candidate applying for the role of "${options.topic}". Include a mix of technical, behavioral, and situational questions. For each question, provide a brief explanation of what you're trying to assess. ${options.company ? `Tailor the questions slightly to the context of a company like ${options.company}.` : ''}`;
-                 break;
-            case GenerationType.CvEnhancement:
-                 prompt = `${basePrompt}\nAnalyze a CV for a professional aiming for the role of "${options.topic}". Provide specific, actionable suggestions on how to enhance the CV. Focus on phrasing, quantifying achievements, and highlighting relevant skills. Provide the output as a list of concrete "before" and "after" examples or clear instructions. The tone should be ${options.tone} and constructive.`;
-                 break;
-            case GenerationType.ResumeTailoring:
-                 prompt = `${basePrompt}\nRewrite and tailor a resume for the specific role of "${options.topic}" ${options.company ? `at a company like ${options.company}` : ''}. I will provide the generic resume content. Your task is to rephrase bullet points, suggest keywords, and structure the information to perfectly match the job requirements. Provide a "Tailored Resume Summary" section and a list of "Optimized Experience Bullet Points". The tone should be professional and ${options.tone}.`;
-                 break;
-            case GenerationType.CompanyProspector:
-                 prompt = `${basePrompt}\nBased on the role/skill "${options.topic}", identify 5 promising companies that are likely hiring for this position. For each company, provide a brief (2-3 sentence) summary of why they are a good fit and a potential talking point or recent news item that could be used for networking outreach.`;
-                 break;
-            default:
-                throw new Error(`Unsupported generation type: ${options.type}`);
+        let jsonStr = response.text.trim();
+        if (jsonStr.startsWith('```json')) {
+            jsonStr = jsonStr.substring(7, jsonStr.length - 3).trim();
         }
 
-        // --- Handle special generation types ---
+        const suggestions = JSON.parse(jsonStr) as CompanySuggestion[];
+        return suggestions.filter(s => s.name && s.industry);
 
-        if (options.type === GenerationType.Video) {
-            let operation = await aiInstance.models.generateVideos({
-                model: 'veo-2.0-generate-001',
-                prompt: `Cinematic, professional, high-definition video representing: ${options.topic}`,
-                config: { numberOfVideos: 1 }
-            });
-
-            while (!operation.done) {
-                await new Promise(resolve => setTimeout(resolve, 10000));
-                operation = await aiInstance.operations.getVideosOperation({ operation: operation });
-            }
-
-            const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-            if (!downloadLink) {
-                throw new Error("Video generation completed, but no download link was provided.");
-            }
-            
-            const videoResponse = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-            if (!videoResponse.ok) {
-                 throw new Error(`Failed to fetch video. Status: ${videoResponse.statusText}`);
-            }
-
-            const videoBlob = await videoResponse.blob();
-            const videoDataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(videoBlob);
-            });
-
-            return {
-                text: `### Video Generation Complete\n\nYour video for the topic **"${options.topic}"** has been successfully generated and is ready for viewing and download.`,
-                imageUrl: videoDataUrl, // Using imageUrl to store the data URL for the video
-            };
-        }
-
-        // --- Standard text generation ---
-        
-        const response = await aiInstance.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-
-        let generatedText = response.text;
-        
-        // --- Add to RAG store after successful generation ---
-        if (generatedText && (options.type === GenerationType.Post || options.type === GenerationType.Document || options.type === GenerationType.ImagePost)) {
-             await vectorStore.add_documents([generatedText]);
-        }
-
-        const finalResult: GenerationResult = { text: generatedText };
-        
-        // --- Handle Image Generation for ImagePost ---
-        if (options.type === GenerationType.ImagePost) {
-             const imageGenPrompt = `
-                Create a visually stunning and professional image for a LinkedIn post.
-                Topic: "${options.topic}".
-                Style: ${options.imageStyle}.
-                Primary Color: ${options.imageBackgroundColor || 'dark blue and silver'}.
-                The overall mood should be professional, innovative, and clean.
-                ${options.logoImage ? 'Subtly incorporate a logo into the design, perhaps on a virtual screen or as a watermark.' : ''}
-            `;
-
-            const imageResponse = await aiInstance.models.generateImages({
-                model: 'imagen-4.0-generate-001',
-                prompt: imageGenPrompt,
-                config: {
-                    numberOfImages: 1,
-                    outputMimeType: 'image/png',
-                    aspectRatio: options.imageAspectRatio || '1:1',
-                }
-            });
-
-            if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
-                const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-                finalResult.imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-            }
-        }
-        
-        return finalResult;
-
-    } catch (error) {
-        throw handleApiError(error, `generate ${options.type}`);
-    }
-}
+     } catch (error) {
+         throw handleApiError(error, 'get company suggestions');
+     }
+};

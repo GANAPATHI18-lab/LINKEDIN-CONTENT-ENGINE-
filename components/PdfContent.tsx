@@ -32,9 +32,12 @@ const PdfContent = React.forwardRef<HTMLDivElement, PdfContentProps>(
         const HEADER_HEIGHT_PT = documentTitle ? 120 : 0;
         const FOOTER_HEIGHT_PT = 60;
         const PROFILE_HEADER_FIRST_PAGE_PT = 40;
+        // FIX: Add a safety buffer to prevent content from being cut off at the bottom of a page.
+        // This addresses inconsistencies in height measurement of rendered HTML elements.
+        const SAFE_BUFFER_PT = 24; // Approx 1.5 lines of text
         
-        const maxContentHeightFirstPage = PAGE_HEIGHT_PT - PAGE_MARGIN_PT - HEADER_HEIGHT_PT - PROFILE_HEADER_FIRST_PAGE_PT - FOOTER_HEIGHT_PT;
-        const maxContentHeightSubsequentPages = PAGE_HEIGHT_PT - PAGE_MARGIN_PT - FOOTER_HEIGHT_PT;
+        const maxContentHeightFirstPage = PAGE_HEIGHT_PT - PAGE_MARGIN_PT - HEADER_HEIGHT_PT - PROFILE_HEADER_FIRST_PAGE_PT - FOOTER_HEIGHT_PT - SAFE_BUFFER_PT;
+        const maxContentHeightSubsequentPages = PAGE_HEIGHT_PT - PAGE_MARGIN_PT - FOOTER_HEIGHT_PT - SAFE_BUFFER_PT;
         
         const paginatedContent: string[] = [];
         let currentPageNodes: Element[] = [];
