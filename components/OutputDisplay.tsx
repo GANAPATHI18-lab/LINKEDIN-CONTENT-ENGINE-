@@ -3,11 +3,12 @@ import { marked } from 'marked';
 import { toPng, toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import ReactDOM from 'react-dom/client';
 
 import Spinner from './Spinner';
 import Watermark from './Watermark';
 import DownloadableStyledContent from './DownloadableStyledContent';
+import PdfEditorModal from './PdfEditorModal';
+import PdfContent from './PdfContent';
 import { GenerationResult, GenerationType, TextOverlayOptions } from '../types';
 
 interface OutputDisplayProps {
@@ -21,26 +22,6 @@ interface OutputDisplayProps {
     generationType: GenerationType;
     textOverlay?: TextOverlayOptions;
 }
-
-// This component is specifically designed for off-screen rendering for PDF generation.
-// It uses a standard width and NO PADDING, as margins are now handled by jsPDF's .html() method.
-const PdfContent: React.FC<{ htmlContent: string }> = ({ htmlContent }) => {
-    return (
-      <div
-        className="bg-white text-black"
-        style={{
-          width: '1080px', // A fixed-width layout is more stable for canvas rendering
-          fontFamily: 'Georgia, serif',
-        }}
-      >
-        <div
-            className="prose prose-xl max-w-none"
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-        />
-      </div>
-    );
-};
-
 
 const FollowUpActions: React.FC<{
     currentType: GenerationType;
@@ -123,8 +104,13 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
     const [isDownloading, setIsDownloading] = useState<string | null>(null);
     const downloadableContentRef = useRef<HTMLDivElement>(null);
     const downloadableImageRef = useRef<HTMLDivElement>(null);
+    const pdfContentRef = useRef<HTMLDivElement>(null);
     const downloadMenuRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+
+    // PDF specific state
+    const [isPdfEditorOpen, setIsPdfEditorOpen] = useState(false);
+    const [pdfRenderContent, setPdfRenderContent] = useState<string | null>(null);
 
     const isIdeaGenerationType = [
         GenerationType.ContentIdeas,
@@ -216,6 +202,18 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
         }
     };
 
+    const handleDownloadVideo = () => {
+        if (!result?.imageUrl) return; // imageUrl now holds the base64 video
+        setIsDownloading('mp4');
+        const link = document.createElement('a');
+        link.href = result.imageUrl;
+        link.download = `${sanitizeFilename(topic)}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setIsDownloading(null);
+    };
+
     const handleDownloadText = () => {
         if (!result?.text) return;
         setIsDownloading('md');
@@ -261,58 +259,112 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
         }
     };
     
-    const handleDownloadPdf = async () => {
-        if (!result?.text) return;
+    const handleGeneratePdf = async (editedMarkdown: string) => {
+        setIsPdfEditorOpen(false);
         setIsDownloading('pdf');
-    
-        // Create a temporary off-screen container.
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        container.style.top = '0px';
-        document.body.appendChild(container);
-    
-        try {
-            const root = ReactDOM.createRoot(container);
-            const parsedHtmlForPdf = marked.parse(result.text) as string;
-    
-            // Render the dedicated PDF component, which has no internal padding.
-            root.render(<PdfContent htmlContent={parsedHtmlForPdf} />);
-    
-            // Wait for rendering and layout. A longer timeout might be needed for complex content.
-            await new Promise(resolve => setTimeout(resolve, 500));
-    
-            const elementToCapture = container.firstChild as HTMLElement;
-            if (!elementToCapture) throw new Error("PDF content failed to render.");
-    
-            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const marginX = pdfWidth * 0.1; // 10% margin on left and right
-            const marginY = pdf.internal.pageSize.getHeight() * 0.1; // 10% margin on top and bottom
+        setPdfRenderContent(editedMarkdown);
 
-            // Use the powerful .html() method which handles pagination automatically.
-            await pdf.html(elementToCapture, {
-                // We use the promise-based version of .html()
-                margin: [marginY, marginX, marginY, marginX],
-                autoPaging: 'text', // Intelligently avoids cutting text lines
-                width: pdfWidth - (marginX * 2), // The width of the content in the PDF
-                windowWidth: 1080, // The width of the source HTML element
-            });
-    
-            pdf.save(`${sanitizeFilename(topic)}.pdf`);
-    
-        } catch (err) {
-            console.error('Failed to generate PDF', err);
-        } finally {
-            // Ensure cleanup happens after PDF generation is complete.
-            if (document.body.contains(container)) {
-                document.body.removeChild(container);
-            }
+        // Allow time for the paginated content to render off-screen
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        const container = pdfContentRef.current;
+        if (!container) {
+            console.error("PDF content container not found.");
             setIsDownloading(null);
+            return;
+        }
+
+        const pageElements = Array.from(container.querySelectorAll('.pdf-page')) as HTMLElement[];
+        if (pageElements.length === 0) {
+            console.error("No pages found to generate PDF.");
+            setIsDownloading(null);
+            setPdfRenderContent(null);
+            return;
+        }
+
+        try {
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const linkedInUrl = "https://www.linkedin.com/in/ganapathi-kakarla-b82341178/";
+
+            for (let i = 0; i < pageElements.length; i++) {
+                const pageElement = pageElements[i];
+                const canvas = await html2canvas(pageElement, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    width: pageElement.offsetWidth,
+                    height: pageElement.offsetHeight,
+                });
+                const imgData = canvas.toDataURL('image/png');
+
+                if (i > 0) {
+                    pdf.addPage();
+                }
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+                // Add hyperlink to footer link on the current page
+                const linkEl = pageElement.querySelector(`#linkedin-link-${i}`);
+                if (linkEl) {
+                    const containerRect = pageElement.getBoundingClientRect();
+                    const elRect = linkEl.getBoundingClientRect();
+                    
+                    const relativePos = {
+                        x: elRect.left - containerRect.left,
+                        y: elRect.top - containerRect.top,
+                        width: elRect.width,
+                        height: elRect.height,
+                    };
+
+                    const pxToPtRatio = pdfWidth / pageElement.offsetWidth;
+                    
+                    const linkCoords = {
+                        x: relativePos.x * pxToPtRatio,
+                        y: relativePos.y * pxToPtRatio,
+                        w: relativePos.width * pxToPtRatio,
+                        h: relativePos.height * pxToPtRatio,
+                    };
+                    
+                    pdf.link(linkCoords.x, linkCoords.y, linkCoords.w, linkCoords.h, { url: linkedInUrl });
+                }
+
+                // Add hyperlink to header link on the FIRST page
+                if (i === 0) {
+                     const headerLinkEl = pageElement.querySelector('header p a');
+                     if (headerLinkEl) {
+                         const containerRect = pageElement.getBoundingClientRect();
+                         const elRect = headerLinkEl.getBoundingClientRect();
+
+                         const relativePos = {
+                             x: elRect.left - containerRect.left,
+                             y: elRect.top - containerRect.top,
+                             width: elRect.width,
+                             height: elRect.height,
+                         };
+                         
+                         const pxToPtRatio = pdfWidth / pageElement.offsetWidth;
+                         const linkCoords = {
+                            x: relativePos.x * pxToPtRatio,
+                            y: relativePos.y * pxToPtRatio,
+                            w: relativePos.width * pxToPtRatio,
+                            h: relativePos.height * pxToPtRatio,
+                         };
+                         
+                         pdf.link(linkCoords.x, linkCoords.y, linkCoords.w, linkCoords.h, { url: linkedInUrl });
+                     }
+                }
+            }
+
+            pdf.save(`${sanitizeFilename(topic)}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+        } finally {
+            setIsDownloading(null);
+            setPdfRenderContent(null);
         }
     };
-
+    
     const parsedHtml = result?.text ? marked.parse(result.text) as string : '';
     
     const renderContent = () => {
@@ -350,8 +402,8 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
             return (
                  <div className="h-full overflow-y-auto p-6 relative">
                     <Watermark text="GANAPATHI KAKARLA" />
-                    <div className="prose prose-invert max-w-none">
-                        {result.imageUrl && (
+                    <div className="prose prose-xl prose-invert max-w-none">
+                        {result.imageUrl && generationType === GenerationType.ImagePost && (
                             <div ref={downloadableImageRef} className="not-prose mb-6 relative">
                                <img 
                                     src={result.imageUrl} 
@@ -377,6 +429,21 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
                                 )}
                             </div>
                         )}
+                        {result.imageUrl && generationType === GenerationType.Video && (
+                            <div className="not-prose mb-6">
+                                <video 
+                                    src={result.imageUrl} 
+                                    controls 
+                                    autoPlay 
+                                    muted 
+                                    loop
+                                    playsInline
+                                    className="w-full aspect-video object-contain rounded-lg shadow-lg bg-black"
+                                >
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        )}
                         <div
                             ref={contentRef}
                             className="relative z-1"
@@ -397,12 +464,14 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
                             {sourcesVisible && (
                                 <ul className="space-y-2 mt-2">
                                     {result.sources.map((source, index) => (
-                                        <li key={index} className="flex items-start gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mt-1 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                            </svg>
-                                            <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-sm">
-                                                {source.title}
+                                        <li key={index} className="text-sm">
+                                            <a
+                                                href={source.uri}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-400 hover:text-blue-300 hover:underline"
+                                            >
+                                                {index + 1}. {source.title || source.uri}
                                             </a>
                                         </li>
                                     ))}
@@ -411,97 +480,130 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
                         </div>
                     )}
                     <FollowUpActions currentType={generationType} onFollowUp={onFollowUp} />
-                </div>
+                 </div>
             );
         }
 
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="text-xl font-semibold">Your AI-generated content will appear here</h3>
-                <p className="mt-2 max-w-md">Select your content type, enter a topic, and click "Generate" to start.</p>
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                     <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    <h3 className="mt-2 text-lg font-medium text-gray-300">Welcome to the Content Engine</h3>
+                    <p className="mt-1 text-sm text-gray-500">Configure your content on the left and click 'Generate' to begin.</p>
+                </div>
             </div>
         );
-    }
-    
-    const renderDownloadButtonContent = (label: string, format: string) => (
-        <>
-            {isDownloading === format ? (
-                <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Saving...</span>
-                </>
-            ) : (
-                label
-            )}
-        </>
-    );
+    };
 
     return (
-        <div className="bg-gray-800 rounded-2xl shadow-lg relative h-full flex flex-col">
-            {result?.text && (
-                 <div style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}>
-                    <DownloadableStyledContent
-                        ref={downloadableContentRef}
-                        htmlContent={parsedHtml}
-                    />
-                </div>
-            )}
-            {result?.text && !isLoading && !error && (
-                 <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-                    <button
-                        onClick={onHumanify}
-                        className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-                        title="Rewrite the text to sound more natural and less like AI."
-                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                        </svg>
-                        Humanify
-                     </button>
-                     
+        <div className="bg-gray-800 rounded-2xl shadow-lg h-full flex flex-col relative overflow-hidden">
+            <div className="flex-shrink-0 p-3 bg-gray-900/50 flex items-center justify-between border-b border-gray-700">
+                <div className="flex-grow"></div> {/* Spacer */}
+                <div className="flex items-center gap-2">
+                    {result?.text && !isIdeaGenerationType && (
+                        <button 
+                            onClick={onHumanify}
+                            disabled={isLoading}
+                            className="px-3 py-1.5 text-xs font-semibold text-purple-300 bg-purple-800/50 hover:bg-purple-800/80 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            title="Rewrite the text to sound more natural"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                            Humanify
+                        </button>
+                    )}
+                    {result?.text && (
+                        <button
+                            onClick={handleCopy}
+                            className="px-3 py-1.5 text-xs font-semibold text-green-300 bg-green-800/50 hover:bg-green-800/80 rounded-full transition-colors duration-200 flex items-center gap-1.5"
+                            title="Copy markdown to clipboard"
+                        >
+                            {copySuccess ? (
+                                <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    Copied!
+                                </>
+                            ) : (
+                                <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+                                    Copy
+                                </>
+                            )}
+                        </button>
+                    )}
                     <div ref={downloadMenuRef} className="relative">
                         <button
-                            onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
-                            className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                             onClick={() => setDownloadMenuOpen(prev => !prev)}
+                             disabled={!result?.text}
+                             className="px-3 py-1.5 text-xs font-semibold text-blue-300 bg-blue-800/50 hover:bg-blue-800/80 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                             title="Download content"
                         >
-                            Download As
-                             <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                             Download
                         </button>
                         {downloadMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-48 bg-gray-600 rounded-lg shadow-xl py-1 z-30">
-                                <button onClick={() => handleDownloadImage('png')} disabled={!!isDownloading} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500 flex items-center disabled:opacity-50 disabled:cursor-wait">
-                                    {renderDownloadButtonContent('PNG Image', 'png')}
-                                </button>
-                                <button onClick={() => handleDownloadImage('jpeg')} disabled={!!isDownloading} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500 flex items-center disabled:opacity-50 disabled:cursor-wait">
-                                    {renderDownloadButtonContent('JPG Image', 'jpeg')}
-                                </button>
-                                 <button onClick={handleDownloadPdf} disabled={!!isDownloading} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500 flex items-center disabled:opacity-50 disabled:cursor-wait">
-                                    {renderDownloadButtonContent('PDF Document', 'pdf')}
-                                </button>
-                                <button onClick={handleDownloadText} disabled={!!isDownloading} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-500 flex items-center disabled:opacity-50 disabled:cursor-wait">
-                                    {renderDownloadButtonContent('Markdown (.md)', 'md')}
-                                </button>
+                            <div className="absolute top-full right-0 mt-2 w-48 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-20">
+                                <ul className="py-1">
+                                    {generationType === GenerationType.Video && result?.imageUrl && (
+                                         <li>
+                                            <button onClick={handleDownloadVideo} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                {isDownloading === 'mp4' ? 'Downloading...' : 'Download Video (.mp4)'}
+                                            </button>
+                                        </li>
+                                    )}
+                                    {generationType !== GenerationType.Video && (
+                                         <>
+                                            <li>
+                                                <button onClick={() => setIsPdfEditorOpen(true)} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'pdf' ? 'Generating...' : 'Export as PDF...'}
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button onClick={handleDownloadText} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'md' ? 'Downloading...' : 'Download Markdown (.md)'}
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button onClick={() => handleDownloadImage('png')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'png' ? 'Generating...' : 'Download as Image (.png)'}
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button onClick={() => handleDownloadImage('jpeg')} className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600">
+                                                    {isDownloading === 'jpeg' ? 'Generating...' : 'Download as Image (.jpeg)'}
+                                                </button>
+                                            </li>
+                                         </>
+                                    )}
+                                </ul>
                             </div>
                         )}
                     </div>
+                </div>
+            </div>
+            {renderContent()}
 
-                    <button
-                        onClick={handleCopy}
-                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 ${copySuccess ? 'bg-green-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                    >
-                        {copySuccess ? 'Copied!' : 'Copy Text'}
-                    </button>
+            {/* Hidden, styled content for image downloads */}
+            <div className="absolute -left-[9999px] top-0">
+                <DownloadableStyledContent ref={downloadableContentRef} htmlContent={parsedHtml} topic={topic} />
+            </div>
+
+            {/* PDF Editor Modal */}
+            <PdfEditorModal
+                isOpen={isPdfEditorOpen}
+                onClose={() => setIsPdfEditorOpen(false)}
+                initialContent={result?.text || ''}
+                topic={topic}
+                onGenerate={handleGeneratePdf}
+            />
+            
+            {/* Hidden container for PDF rendering */}
+            {pdfRenderContent && (
+                <div className="absolute -left-[9999px] top-0">
+                    <PdfContent ref={pdfContentRef} markdownContent={pdfRenderContent} />
                 </div>
             )}
-            <div className="flex-grow min-h-0">
-                {renderContent()}
-            </div>
         </div>
     );
 };

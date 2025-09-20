@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { GenerationType, PostLength, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, TextOverlayFont, TextOverlayPlacement, Tone } from '../types';
+import { GenerationType, PostLength, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, TextOverlayFont, TextOverlayPlacement, Tone, personaDisplayNames } from '../types';
 import { getTopicSuggestions, getCompanySuggestions } from '../services/geminiService';
 
 interface ControlsProps {
@@ -35,88 +36,10 @@ interface ControlsProps {
     setTextOverlay: (options: TextOverlayOptions) => void;
 }
 
-const personaDisplayNames: Record<Persona, string> = {
-    [Persona.GanapathiKakarla]: 'Ganapathi Kakarla (Expert)',
-    // AI & Data Roles (Alphabetical)
-    [Persona.AIArchitect]: 'AI Architect',
-    [Persona.AIAuditor]: 'AI Auditor',
-    [Persona.AIBusinessStrategist]: 'AI Business Strategist',
-    [Persona.AIEthicist]: 'AI Ethicist',
-    [Persona.AIGovernanceSpecialist]: 'AI Governance Specialist',
-    [Persona.AIInfrastructureEngineer]: 'AI Infrastructure Engineer',
-    [Persona.AIProductManager]: 'AI Product Manager',
-    [Persona.AIQualityAssuranceEngineer]: 'AI QA Engineer',
-    [Persona.AIResearcher]: 'AI Researcher',
-    [Persona.AIResearchScientist]: 'AI Research Scientist',
-    [Persona.AISafetyEngineer]: 'AI Safety Engineer',
-    [Persona.AISolutionsConsultant]: 'AI Solutions Consultant',
-    [Persona.AITrainer]: 'AI Trainer / Data Curator',
-    [Persona.AITutor]: 'AI Tutor / Educator',
-    [Persona.AnalyticsEngineer]: 'Analytics Engineer',
-    [Persona.BigDataEngineer]: 'Big Data Engineer',
-    [Persona.Bioinformatician]: 'Bioinformatician',
-    [Persona.BusinessIntelligenceAnalyst]: 'BI Analyst',
-    [Persona.BusinessIntelligenceDeveloper]: 'BI Developer',
-    [Persona.CDAIO]: 'Chief Data & AI Officer (CDAIO)',
-    [Persona.ChiefDataOfficer]: 'Chief Data Officer (CDO)',
-    [Persona.ChiefInformationSecurityOfficer]: 'Chief Information Security Officer (CISO)',
-    [Persona.ClinicalDataScientist]: 'Clinical Data Scientist',
-    [Persona.CloudDataEngineer]: 'Cloud Data Engineer',
-    [Persona.CloudEngineer]: 'Cloud Engineer (AI Specialization)',
-    [Persona.ComputationalLinguist]: 'Computational Linguist',
-    [Persona.ComputerVisionEngineer]: 'Computer Vision Engineer',
-    [Persona.ConversationalAIDeveloper]: 'Conversational AI Developer',
-    [Persona.DashboardDeveloper]: 'Dashboard Developer',
-    [Persona.DataAnalyst]: 'Data Analyst',
-    [Persona.DataArchitect]: 'Data Architect',
-    [Persona.DataArtist]: 'Data Artist',
-    [Persona.DataEngineer]: 'Data Engineer',
-    [Persona.DataGovernanceManager]: 'Data Governance Manager',
-    [Persona.DataJournalist]: 'Data Journalist',
-    [Persona.DataModeler]: 'Data Modeler',
-    [Persona.DataPrivacyOfficer]: 'Data Privacy Officer',
-    [Persona.DataScientist]: 'Data Scientist',
-    [Persona.DataSteward]: 'Data Steward',
-    [Persona.DataVisualizationEngineer]: 'Data Visualization Engineer',
-    [Persona.DataVisualizationSpecialist]: 'Data Visualization Specialist',
-    [Persona.DatabaseAdministrator]: 'Database Administrator (DBA)',
-    [Persona.DeepLearningEngineer]: 'Deep Learning Engineer',
-    [Persona.DevOpsEngineer]: 'DevOps Engineer (AI/ML Focus)',
-    [Persona.DirectorOfAI]: 'Director of AI',
-    [Persona.ETLDeveloper]: 'ETL Developer',
-    [Persona.GenerativeAISpecialist]: 'Generative AI Specialist',
-    [Persona.HeadOfAI]: 'Head of AI',
-    [Persona.HealthInformaticsSpecialist]: 'Health Informatics Specialist',
-    [Persona.InformationDesigner]: 'Information Designer',
-    [Persona.KnowledgeEngineer]: 'Knowledge Engineer',
-    [Persona.MachineLearningEngineer]: 'Machine Learning Engineer',
-    [Persona.MLOpsEngineer]: 'MLOps Engineer',
-    [Persona.NLPSpecialist]: 'NLP Specialist',
-    [Persona.OperationsResearchAnalyst]: 'Operations Research Analyst',
-    [Persona.PrincipalDataScientist]: 'Principal Data Scientist',
-    [Persona.PromptEngineer]: 'Prompt Engineer',
-    [Persona.QuantitativeAnalyst]: 'Quantitative Analyst (Quant)',
-    [Persona.ReinforcementLearningEngineer]: 'Reinforcement Learning Engineer',
-    [Persona.RoboticsEngineer]: 'Robotics Engineer (AI Focus)',
-    [Persona.SearchRelevanceEngineer]: 'Search & Relevance Engineer',
-    [Persona.SoftwareDeveloper]: 'Software Developer (AI/ML Focus)',
-    [Persona.SpeechRecognitionEngineer]: 'Speech Recognition Engineer',
-    [Persona.Statistician]: 'Statistician',
-    [Persona.UXDesignerDataProducts]: 'UX Designer (Data Products)',
-    [Persona.VPofDataScience]: 'VP of Data Science',
-    // Healthcare Roles
-    [Persona.CardiacTechnologist]: 'Cardiac Technologist',
-    [Persona.ChiefMedicalInformationOfficer]: 'Chief Medical Information Officer (CMIO)',
-    [Persona.HealthcareAdministrator]: 'Healthcare Administrator',
-    [Persona.HealthcareInnovator]: 'Healthcare Innovator',
-    [Persona.MedicalDoctor]: 'Medical Doctor',
-    [Persona.MedicalImagingAnalyst]: 'Medical Imaging Analyst',
-    [Persona.TelehealthCoordinator]: 'Telehealth Coordinator',
-};
-
 const topicPlaceholders: Record<GenerationType, string> = {
     [GenerationType.Post]: "e.g., 'AI in Medical Diagnosis'",
     [GenerationType.ImagePost]: "e.g., 'The Future of Telemedicine'",
+    [GenerationType.Video]: "e.g., 'A cinematic shot of a futuristic hospital'",
     [GenerationType.Document]: "e.g., 'A Deep Dive into Federated Learning'",
     [GenerationType.ContentIdeas]: "e.g., 'Patient Data Privacy'",
     [GenerationType.Top10Ideas]: "e.g., 'AI for Drug Discovery'",
@@ -206,6 +129,7 @@ const Controls: React.FC<ControlsProps> = ({
     const [companySuggestionsVisible, setCompanySuggestionsVisible] = useState<boolean>(false);
     const [companySuggestionsError, setCompanySuggestionsError] = useState<string | null>(null);
     const [activeIndustryFilter, setActiveIndustryFilter] = useState<Industry | 'All'>('All');
+    const [isTopicTooltipVisible, setTopicTooltipVisible] = useState<boolean>(false);
 
 
     useEffect(() => {
@@ -388,6 +312,7 @@ const Controls: React.FC<ControlsProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 bg-gray-700 p-1 rounded-lg">
                     <button onClick={() => setGenerationType(GenerationType.Post)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.Post ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Post</button>
                     <button onClick={() => setGenerationType(GenerationType.ImagePost)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.ImagePost ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Post + Image</button>
+                    <button onClick={() => setGenerationType(GenerationType.Video)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.Video ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Video</button>
                     <button onClick={() => setGenerationType(GenerationType.Document)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.Document ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Document</button>
                     <button onClick={() => setGenerationType(GenerationType.WeeklyContentPlan)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.WeeklyContentPlan ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Weekly Plan</button>
                     <button onClick={() => setGenerationType(GenerationType.ContentIdeas)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.ContentIdeas ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Content Ideas</button>
@@ -653,9 +578,37 @@ const Controls: React.FC<ControlsProps> = ({
             )}
 
             <div className="relative">
-                <label htmlFor="topic" className="block text-sm font-medium text-gray-300 mb-2">
-                    {isCareerTopicType ? 'Role / Skill' : 'Topic'}
-                </label>
+                 <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="topic" className="block text-sm font-medium text-gray-300">
+                        {isCareerTopicType ? 'Role / Skill' : 'Topic'}
+                    </label>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onMouseEnter={() => setTopicTooltipVisible(true)}
+                            onMouseLeave={() => setTopicTooltipVisible(false)}
+                            onClick={() => setTopicTooltipVisible(v => !v)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                            aria-label="Show prompt writing tips"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                        {isTopicTooltipVisible && (
+                            <div className="absolute bottom-full right-0 mb-2 w-72 bg-gray-600 text-white text-xs rounded-lg shadow-lg p-3 z-40 pointer-events-none">
+                                <h4 className="font-bold mb-2 text-sm">Prompt Best Practices</h4>
+                                <ul className="space-y-1 list-disc list-inside">
+                                    <li><strong>Be Specific:</strong> Instead of "AI," try "Using AI for early-stage diabetic retinopathy detection."</li>
+                                    <li><strong>Define the Goal:</strong> Start with verbs like "Create a plan," "Analyze the impact of," or "Compare X and Y."</li>
+                                    <li><strong>Provide Context:</strong> Mention the target audience (e.g., "for beginners," "for executives").</li>
+                                    <li><strong>Set the Format:</strong> Ask for "a list of 5 ideas," "a 3-paragraph summary," or "a table comparing pros and cons."</li>
+                                </ul>
+                                <div className="absolute right-2 -bottom-1 w-2 h-2 bg-gray-600 transform rotate-45"></div>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 <input
                     type="text"
                     id="topic"
