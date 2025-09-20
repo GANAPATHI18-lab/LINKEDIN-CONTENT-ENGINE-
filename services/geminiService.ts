@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
 // FIX: Imported personaDisplayNames from types.ts to resolve reference error.
-import { GenerationOptions, GenerationType, PostLength, GenerationResult, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, Tone, personaDisplayNames } from '../types';
+import { GenerationOptions, GenerationType, PostLength, GenerationResult, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, Tone, personaDisplayNames, VideoQuality } from '../types';
 
 // Lazily initialize the AI client to prevent crashing the app on load if the API key is missing.
 let ai: GoogleGenAI | null = null;
@@ -334,7 +334,7 @@ const getPersonaPrompt = (persona: Persona): string => {
 };
 
 const constructPrompt = async (options: GenerationOptions): Promise<{ prompt: string, useSearch: boolean }> => {
-    const { type, topic, pageCount, postLength, persona, difficultyLevel, company, dayNumber, tone, imageBackgroundColor, imageStyle, logoImage, textOverlay } = options;
+    const { type, topic, pageCount, postLength, persona, difficultyLevel, company, dayNumber, tone, imageBackgroundColor, imageStyle, logoImage, textOverlay, videoQuality } = options;
     const personaPrompt = getPersonaPrompt(persona);
     const qualityInstruction = getQualityInstruction();
     let prompt = "";
@@ -385,7 +385,8 @@ const constructPrompt = async (options: GenerationOptions): Promise<{ prompt: st
             break;
 
         case GenerationType.Video:
-             prompt = `Generate a single, descriptive, and highly effective prompt for a text-to-video generation model (like Veo). The final output must be ONLY the prompt itself. The video should be a cinematic, high-quality stock video clip related to the topic: "${topic}". Do not add any text overlays or complex narratives. Focus on creating a visually appealing and relevant video scene. For example, if the topic is 'AI in surgery', a good prompt would be "A cinematic, close-up shot of a robotic surgical arm making a precise incision under bright operating room lights."`;
+            const qualityDescriptor = videoQuality === VideoQuality.HD ? 'a cinematic, ultra high-quality, 4k resolution' : 'a standard-quality';
+            prompt = `Generate a single, descriptive, and highly effective prompt for a text-to-video generation model (like Veo). The final output must be ONLY the prompt itself. The video should be ${qualityDescriptor} stock video clip related to the topic: "${topic}". Do not add any text overlays or complex narratives. Focus on creating a visually appealing and relevant video scene. For example, if the topic is 'AI in surgery', a good prompt would be "A cinematic, close-up shot of a robotic surgical arm making a precise incision under bright operating room lights."`;
             break;
 
         case GenerationType.Document:
@@ -544,6 +545,15 @@ export const generateContent = async (options: GenerationOptions): Promise<Gener
                 
                 if (sources.length > 0) {
                      result.sources = sources;
+                     // If the generation type is a document, automatically append the sources
+                     // as a formatted "References" section.
+                     if (options.type === GenerationType.Document) {
+                         const referencesHeader = "\n\n---\n\n## References\n\n";
+                         const referencesList = sources
+                             .map((source, index) => `${index + 1}. **[${source.title.trim()}](${source.uri})**`)
+                             .join('\n');
+                         result.text += referencesHeader + referencesList;
+                     }
                 }
             }
             return result;
@@ -558,14 +568,94 @@ export const humanifyText = async (text: string, persona: Persona): Promise<stri
     try {
         const aiInstance = getAi();
         const personaPrompt = getPersonaPrompt(persona);
-        const prompt = `Please rewrite the following text to make it sound more natural, engaging, and less like it was written by an AI. Adopt the persona described below. Do not add new information, just improve the style and flow. \n\nPERSONA: ${personaPrompt}\n\nORIGINAL TEXT:\n---\n${text}\n---\n\nREWRITTEN TEXT:`;
-        
-        const response = await aiInstance.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
+
+        // Heuristic: If the text is long or has multiple markdown headings, treat it as a document.
+        const isDocument = text.length > 1500 || (text.match(/^#{1,6}\s/gm) || []).length > 1;
+
+        if (!isDocument) {
+            // Original logic for short texts (e.g., posts)
+            const prompt = `Please rewrite the following text to make it sound more natural, engaging, and less like it was written by an AI. Adopt the persona described below. Do not add new information, just improve the style and flow. \n\nPERSONA: ${personaPrompt}\n\nORIGINAL TEXT:\n---\n${text}\n---\n\nREWRITTEN TEXT:`;
+            
+            const response = await aiInstance.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            return response.text;
+        }
+
+        // New context-aware logic for documents
+        const lines = text.split('\n');
+        let documentTitle = "Document";
+        const firstH1 = lines.find(line => line.startsWith('# '));
+        if (firstH1) {
+            documentTitle = firstH1.substring(2).trim();
+        }
+
+        const sections: { heading: string, content: string }[] = [];
+        let currentSection: { heading: string, content: string } = { heading: "", content: "" };
+
+        for (const line of lines) {
+            if (line.match(/^#{1,6}\s/)) {
+                if (currentSection.content.trim() !== "" || currentSection.heading.trim() !== "") {
+                    sections.push(currentSection);
+                }
+                currentSection = { heading: line, content: "" };
+            } else {
+                currentSection.content += line + '\n';
+            }
+        }
+        if (currentSection.content.trim() !== "" || currentSection.heading.trim() !== "") {
+            sections.push(currentSection);
+        }
+
+        const humanifiedSectionsPromises = sections.map(async (section) => {
+            // Don't humanify very short content blocks or code blocks
+            const trimmedContent = section.content.trim();
+            if (!trimmedContent || trimmedContent.length < 40 || trimmedContent.startsWith('```')) {
+                return (section.heading ? section.heading + '\n' : '') + section.content;
+            }
+
+            const prompt = `You are an expert editor rewriting a section of a larger professional document. Your task is to make the provided text sound more natural, engaging, and less robotic, while strictly adhering to the given persona.
+
+**CONTEXT:**
+- **Overall Document Title:** "${documentTitle}"
+- **Current Section Heading:** "${section.heading.replace(/#/g, '').trim()}"
+
+**PERSONA GUIDELINE:**
+${personaPrompt}
+
+**INSTRUCTIONS:**
+1.  Rewrite the "ORIGINAL TEXT" below.
+2.  Maintain the core meaning and all factual information. **Do not add new information or summaries.**
+3.  Improve style, flow, and sentence structure to be more human-like.
+4.  **Crucially, your output must be ONLY the rewritten text for this section's content.** Do NOT include the heading in your response.
+5.  Preserve all original Markdown formatting within the text (like lists, bold, italics, code blocks).
+
+**ORIGINAL TEXT:**
+---
+${section.content}
+---
+
+**REWRITTEN TEXT:**`;
+
+            try {
+                const response = await aiInstance.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                });
+                const rewrittenContent = response.text;
+                return (section.heading ? section.heading + '\n' : '') + rewrittenContent;
+            } catch (error) {
+                console.error("Error humanifying section:", error);
+                // Fallback to original content on error
+                return (section.heading ? section.heading + '\n' : '') + section.content;
+            }
         });
 
-        return response.text;
+        const humanifiedSections = await Promise.all(humanifiedSectionsPromises);
+        return humanifiedSections.join('\n').trim();
+
     } catch (error) {
         throw handleApiError(error, 'humanify text');
     }

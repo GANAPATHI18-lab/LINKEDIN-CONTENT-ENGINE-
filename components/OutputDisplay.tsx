@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { marked } from 'marked';
 import { toPng, toJpeg } from 'html-to-image';
@@ -9,7 +10,7 @@ import Watermark from './Watermark';
 import DownloadableStyledContent from './DownloadableStyledContent';
 import ContentEditorModal from './PdfEditorModal';
 import PdfContent from './PdfContent';
-import { GenerationResult, GenerationType, TextOverlayOptions } from '../types';
+import { GenerationResult, GenerationType, TextOverlayOptions, PdfExportQuality } from '../types';
 
 interface OutputDisplayProps {
     result: GenerationResult | null;
@@ -20,6 +21,7 @@ interface OutputDisplayProps {
     onFollowUp: (newType: GenerationType) => void;
     onIdeaClick: (topic: string) => void;
     generationType: GenerationType;
+    pdfExportQuality: PdfExportQuality;
     textOverlay?: TextOverlayOptions;
 }
 
@@ -97,7 +99,7 @@ const FollowUpActions: React.FC<{
 };
 
 
-const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error, topic, onHumanify, onFollowUp, onIdeaClick, generationType, textOverlay }) => {
+const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error, topic, onHumanify, onFollowUp, onIdeaClick, generationType, pdfExportQuality, textOverlay }) => {
     const [copySuccess, setCopySuccess] = useState(false);
     const [sourcesVisible, setSourcesVisible] = useState(true);
     const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
@@ -307,22 +309,51 @@ const OutputDisplay: React.FC<OutputDisplayProps> = ({ result, isLoading, error,
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             const linkedInUrl = "https://www.linkedin.com/in/ganapathi-kakarla-b82341178/";
+            
+            // Define quality settings based on the selected option
+            let canvasScale: number;
+            let imageFormat: 'PNG' | 'JPEG';
+            let imageMimeType: string;
+            let imageQuality: number;
+
+            switch (pdfExportQuality) {
+                case PdfExportQuality.Compact: // < 70MB: Lower resolution, higher JPEG compression
+                    canvasScale = 1.5;
+                    imageFormat = 'JPEG';
+                    imageMimeType = 'image/jpeg';
+                    imageQuality = 0.7;
+                    break;
+                case PdfExportQuality.Standard: // 70-100MB: Good resolution, standard JPEG compression
+                    canvasScale = 2;
+                    imageFormat = 'JPEG';
+                    imageMimeType = 'image/jpeg';
+                    imageQuality = 0.85;
+                    break;
+                case PdfExportQuality.High: // > 100MB: High resolution, lossless PNG
+                default:
+                    canvasScale = 2.5;
+                    imageFormat = 'PNG';
+                    imageMimeType = 'image/png';
+                    imageQuality = 1.0; // Not used for PNG but good practice to set
+                    break;
+            }
 
             for (let i = 0; i < pageElements.length; i++) {
                 const pageElement = pageElements[i];
                 const canvas = await html2canvas(pageElement, {
-                    scale: 2,
+                    scale: canvasScale,
                     useCORS: true,
                     logging: false,
                     width: pageElement.offsetWidth,
                     height: pageElement.offsetHeight,
                 });
-                const imgData = canvas.toDataURL('image/png');
+                
+                const imgData = canvas.toDataURL(imageMimeType, imageQuality);
 
                 if (i > 0) {
                     pdf.addPage();
                 }
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.addImage(imgData, imageFormat, 0, 0, pdfWidth, pdfHeight);
 
                 // Add hyperlink to footer link on the current page
                 const linkEl = pageElement.querySelector(`#linkedin-link-${i}`);

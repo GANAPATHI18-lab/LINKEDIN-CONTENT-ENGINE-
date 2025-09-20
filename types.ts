@@ -133,6 +133,17 @@ export enum ImageAspectRatio {
     Portrait = '3:4',
 }
 
+export enum VideoQuality {
+    SD = 'sd',
+    HD = 'hd',
+}
+
+export enum PdfExportQuality {
+    Compact = 'compact',
+    Standard = 'standard',
+    High = 'high',
+}
+
 export type TextOverlayFont = 'Inter' | 'Roboto Slab' | 'Playfair Display';
 export type TextOverlayPlacement = 'top' | 'center' | 'bottom';
 
@@ -159,6 +170,8 @@ export interface GenerationOptions {
   logoImage?: string; // base64 data URL
   imageAspectRatio?: ImageAspectRatio;
   textOverlay?: TextOverlayOptions;
+  videoQuality?: VideoQuality;
+  pdfExportQuality?: PdfExportQuality;
 }
 
 export interface GenerationResult {

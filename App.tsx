@@ -1,9 +1,10 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import Controls from './components/Controls';
 import OutputDisplay from './components/OutputDisplay';
 import HistoryPanel from './components/HistoryPanel';
-import { GenerationType, GenerationOptions, GenerationResult, PostLength, Persona, DifficultyLevel, HistoryItem, ImageStyle, ImageAspectRatio, TextOverlayOptions, Tone } from './types';
+import { GenerationType, GenerationOptions, GenerationResult, PostLength, Persona, DifficultyLevel, HistoryItem, ImageStyle, ImageAspectRatio, TextOverlayOptions, Tone, VideoQuality, PdfExportQuality } from './types';
 import { generateContent, humanifyText } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -16,6 +17,8 @@ const App: React.FC = () => {
     const [tone, setTone] = useState<Tone>(Tone.Formal);
     const [company, setCompany] = useState<string>('');
     const [dayNumber, setDayNumber] = useState<number>(1);
+    const [videoQuality, setVideoQuality] = useState<VideoQuality>(VideoQuality.SD);
+    const [pdfExportQuality, setPdfExportQuality] = useState<PdfExportQuality>(PdfExportQuality.Standard);
     const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -86,6 +89,8 @@ const App: React.FC = () => {
             difficultyLevel,
             company,
             dayNumber,
+            videoQuality,
+            pdfExportQuality,
             imageBackgroundColor,
             imageStyle,
             logoImage,
@@ -117,7 +122,7 @@ const App: React.FC = () => {
         }
     }, [
         generationType, topic, pageCount, postLength, persona, tone, difficultyLevel, 
-        company, dayNumber, imageBackgroundColor, imageStyle, logoImage, imageAspectRatio, textOverlay
+        company, dayNumber, videoQuality, pdfExportQuality, imageBackgroundColor, imageStyle, logoImage, imageAspectRatio, textOverlay
     ]);
     
     const handleFollowUpAction = useCallback(async (newType: GenerationType) => {
@@ -177,6 +182,8 @@ const App: React.FC = () => {
         setTone(item.options.tone || Tone.Formal);
         setCompany(item.options.company || '');
         setDayNumber(item.options.dayNumber || 1);
+        setVideoQuality(item.options.videoQuality || VideoQuality.SD);
+        setPdfExportQuality(item.options.pdfExportQuality || PdfExportQuality.Standard);
         setImageBackgroundColor(item.options.imageBackgroundColor || '');
         setImageStyle(item.options.imageStyle || ImageStyle.Abstract);
         setImageAspectRatio(item.options.imageAspectRatio || ImageAspectRatio.Square);
@@ -240,6 +247,10 @@ const App: React.FC = () => {
                                 setDayNumber={setDayNumber}
                                 onGenerate={() => handleGenerate()}
                                 isLoading={isLoading}
+                                videoQuality={videoQuality}
+                                setVideoQuality={setVideoQuality}
+                                pdfExportQuality={pdfExportQuality}
+                                setPdfExportQuality={setPdfExportQuality}
                                 imageBackgroundColor={imageBackgroundColor}
                                 setImageBackgroundColor={setImageBackgroundColor}
                                 imageStyle={imageStyle}
@@ -269,6 +280,7 @@ const App: React.FC = () => {
                             onHumanify={handleHumanify}
                             onFollowUp={handleFollowUpAction}
                             generationType={generationType}
+                            pdfExportQuality={pdfExportQuality}
                             textOverlay={textOverlay}
                             onIdeaClick={handleIdeaClick}
                         />

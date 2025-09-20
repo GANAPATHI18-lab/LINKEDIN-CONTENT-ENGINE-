@@ -30,7 +30,7 @@ const PdfContent = React.forwardRef<HTMLDivElement, PdfContentProps>(
         const PAGE_HEIGHT_PT = 1170; // A4 height at 96 DPI
         const PAGE_MARGIN_PT = 64 * 2; // 1 inch margins on top/bottom
         const HEADER_HEIGHT_PT = documentTitle ? 120 : 0;
-        const FOOTER_HEIGHT_PT = 60;
+        const FOOTER_HEIGHT_PT = 85; // Increased from 60 to accommodate new line in footer
         const PROFILE_HEADER_FIRST_PAGE_PT = 40;
         // FIX: Add a safety buffer to prevent content from being cut off at the bottom of a page.
         // This addresses inconsistencies in height measurement of rendered HTML elements.
@@ -121,11 +121,16 @@ const PdfContent = React.forwardRef<HTMLDivElement, PdfContentProps>(
                             />
                         </main>
                         
-                        <footer className="mt-auto pt-5 border-t-2 border-gray-200 text-xs text-gray-500 flex justify-between items-center">
-                            <p id={`linkedin-link-${index}`}>
-                                Connect with Ganapathi Kakarla: <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">{linkedInUrl}</a>
+                        <footer className="mt-auto pt-5 border-t-2 border-gray-200 text-xs">
+                            <p className="text-center font-semibold text-gray-700 mb-2">
+                                Found this useful? Repost to share this knowledge with your network.
                             </p>
-                            <p>Page {index + 1} of {pages.length}</p>
+                            <div className="flex justify-between items-center text-gray-500">
+                                <p id={`linkedin-link-${index}`}>
+                                    Connect with Ganapathi Kakarla: <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">{linkedInUrl}</a>
+                                </p>
+                                <p>Page {index + 1} of {pages.length}</p>
+                            </div>
                         </footer>
                     </div>
                 </div>

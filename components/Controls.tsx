@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GenerationType, PostLength, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, TextOverlayFont, TextOverlayPlacement, Tone, personaDisplayNames } from '../types';
+import { GenerationType, PostLength, Persona, DifficultyLevel, CompanySuggestion, ImageStyle, ImageAspectRatio, TextOverlayOptions, TextOverlayFont, TextOverlayPlacement, Tone, personaDisplayNames, VideoQuality, PdfExportQuality } from '../types';
 import { getTopicSuggestions, getCompanySuggestions } from '../services/geminiService';
 
 interface ControlsProps {
@@ -24,6 +24,10 @@ interface ControlsProps {
     setDayNumber: (day: number) => void;
     onGenerate: () => void;
     isLoading: boolean;
+    videoQuality: VideoQuality;
+    setVideoQuality: (quality: VideoQuality) => void;
+    pdfExportQuality: PdfExportQuality;
+    setPdfExportQuality: (quality: PdfExportQuality) => void;
     imageBackgroundColor: string;
     setImageBackgroundColor: (color: string) => void;
     imageStyle: ImageStyle;
@@ -106,6 +110,10 @@ const Controls: React.FC<ControlsProps> = ({
     setDayNumber,
     onGenerate,
     isLoading,
+    videoQuality,
+    setVideoQuality,
+    pdfExportQuality,
+    setPdfExportQuality,
     imageBackgroundColor,
     setImageBackgroundColor,
     imageStyle,
@@ -330,6 +338,47 @@ const Controls: React.FC<ControlsProps> = ({
                     <button onClick={() => setGenerationType(GenerationType.CompanyProspector)} className={`px-2 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${generationType === GenerationType.CompanyProspector ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>Prospect Companies</button>
                 </div>
             </div>
+
+            {generationType === GenerationType.Video && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Video Quality (Target Size)</label>
+                    <div className="grid grid-cols-2 gap-2 bg-gray-700 p-1 rounded-lg">
+                        <button
+                            onClick={() => setVideoQuality(VideoQuality.SD)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${videoQuality === VideoQuality.SD ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+                            Standard (&lt; 100MB)
+                        </button>
+                        <button
+                            onClick={() => setVideoQuality(VideoQuality.HD)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${videoQuality === VideoQuality.HD ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+                            High Quality (&gt; 100MB)
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {generationType === GenerationType.Document && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">PDF Export Quality (Target Size)</label>
+                    <div className="grid grid-cols-3 gap-2 bg-gray-700 p-1 rounded-lg">
+                        <button
+                            onClick={() => setPdfExportQuality(PdfExportQuality.Compact)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${pdfExportQuality === PdfExportQuality.Compact ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+                            Compact (&lt; 70MB)
+                        </button>
+                        <button
+                            onClick={() => setPdfExportQuality(PdfExportQuality.Standard)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${pdfExportQuality === PdfExportQuality.Standard ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+                            Standard (70-100MB)
+                        </button>
+                        <button
+                            onClick={() => setPdfExportQuality(PdfExportQuality.High)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 ${pdfExportQuality === PdfExportQuality.High ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}>
+                            High Quality (&gt; 100MB)
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {(generationType === GenerationType.Post || generationType === GenerationType.ImagePost) && (
                  <div>
